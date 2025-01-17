@@ -144,6 +144,7 @@ observe(Metrics0=#{ref:=ListenerRef}) ->
 %% @doc
 %% Sets all metrics up. Call this when the app starts.
 %% @end
+-spec setup() -> ok.
 setup() ->
   prometheus_counter:declare([{name, cowboy_early_errors_total},
                               {registry, registry()},

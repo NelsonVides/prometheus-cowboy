@@ -14,9 +14,15 @@
 %% cowboy_handler callbacks
 %% ===================================================================
 
+-type state() :: any().
+
+-spec init(cowboy_req:req(), cowboy_http:opts()) ->
+          {ok, cowboy_req:req(), undefined}.
 init(Req, _Opts) ->
   handle(Req).
 
+-spec terminate(cowboy_req:resp(), cowboy_req:req(), state()) ->
+               ok.
 terminate(_Reason, _Req, _State) ->
   ok.
 

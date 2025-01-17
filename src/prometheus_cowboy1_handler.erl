@@ -13,14 +13,23 @@
 %% cowboy_http_handler callbacks
 %% ===================================================================
 
+-type state() :: any().
+
+-spec init(cowboy_req:transport(), cowboy_req:req(), cowboy_http:opts()) ->
+          {ok, cowboy_req:req(), cowboy_http:opts()}.
 init(_Transport, Request, Opts) ->
   {ok, Request, Opts}.
 
+-spec handle(cowboy_req:req(), state()) ->
+            {ok, cowboy_req:req(), state()} |
+            {ok, cowboy_req:req(), cowboy_req:resp()}.
 handle(Request0, State) ->
   {Method, Request} = cowboy_req:method(Request0),
   {ok, Response} = gen_response(Method, Request),
   {ok, Response, State}.
 
+-spec terminate(cowboy_req:resp(), cowboy_req:req(), state()) ->
+               ok.
 terminate(_Reason, _Request, _State) ->
   ok.
 
