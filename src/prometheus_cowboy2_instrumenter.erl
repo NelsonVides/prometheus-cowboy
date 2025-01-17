@@ -106,9 +106,13 @@
 -export([setup/0]).
 -export([observe/1]).
 
--compile({inline, [inc/2,
-                   inc/3,
-                   observe/3]}).
+-compile(
+    {inline, [
+        inc/2,
+        inc/3,
+        observe/3
+    ]}
+).
 
 -define(DEFAULT_DURATION_BUCKETS, [0.01, 0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 4]).
 -define(DEFAULT_EARLY_ERROR_LABELS, []).
@@ -117,13 +121,15 @@
 -define(DEFAULT_ERROR_LABELS, [method, reason, error]).
 -define(DEFAULT_LABELS_MODULE, undefined).
 -define(DEFAULT_REGISTRY, default).
--define(DEFAULT_CONFIG, [{duration_buckets, ?DEFAULT_DURATION_BUCKETS},
-                         {early_error_labels,  ?DEFAULT_EARLY_ERROR_LABELS},
-                         {protocol_upgrade_labels, ?DEFAULT_PROTOCOL_UPGRADE_LABELS},
-                         {request_labels, ?DEFAULT_REQUEST_LABELS},
-                         {error_labels, ?DEFAULT_ERROR_LABELS},
-                         {lables_module, ?DEFAULT_LABELS_MODULE},
-                         {registry, ?DEFAULT_REGISTRY}]).
+-define(DEFAULT_CONFIG, [
+    {duration_buckets, ?DEFAULT_DURATION_BUCKETS},
+    {early_error_labels, ?DEFAULT_EARLY_ERROR_LABELS},
+    {protocol_upgrade_labels, ?DEFAULT_PROTOCOL_UPGRADE_LABELS},
+    {request_labels, ?DEFAULT_REQUEST_LABELS},
+    {error_labels, ?DEFAULT_ERROR_LABELS},
+    {lables_module, ?DEFAULT_LABELS_MODULE},
+    {registry, ?DEFAULT_REGISTRY}
+]).
 
 %% ===================================================================
 %% API
@@ -135,171 +141,196 @@
 %% Metrics stream handler
 %% </a> callback.
 %% @end
-observe(Metrics0=#{ref:=ListenerRef}) ->
-  {Host, Port} = ranch:get_addr(ListenerRef),
-  dispatch_metrics(Metrics0#{listener_host=>Host,
-                             listener_port=>Port}),
-  ok.
+observe(Metrics0 = #{ref := ListenerRef}) ->
+    {Host, Port} = ranch:get_addr(ListenerRef),
+    dispatch_metrics(Metrics0#{
+        listener_host => Host,
+        listener_port => Port
+    }),
+    ok.
 
 %% @doc
 %% Sets all metrics up. Call this when the app starts.
 %% @end
 -spec setup() -> ok.
 setup() ->
-  prometheus_counter:declare([{name, cowboy_early_errors_total},
-                              {registry, registry()},
-                              {labels, early_error_labels()},
-                              {help, "Total number of Cowboy early errors."}]),
-  prometheus_counter:declare([{name, cowboy_protocol_upgrades_total},
-                              {registry, registry()},
-                              {labels, protocol_upgrade_labels()},
-                              {help, "Total number of protocol upgrades."}]),
-  %% each observe call means new request
-  prometheus_counter:declare([{name, cowboy_requests_total},
-                              {registry, registry()},
-                              {labels, request_labels()},
-                              {help, "Total number of Cowboy requests."}]),
-  prometheus_counter:declare([{name, cowboy_spawned_processes_total},
-                              {registry, registry()},
-                              {labels, request_labels()},
-                              {help, "Total number of spawned processes."}]),
-  prometheus_counter:declare([{name, cowboy_errors_total},
-                              {registry, registry()},
-                              {labels, error_labels()},
-                              {help, "Total number of Cowboy request errors."}]),
-  prometheus_histogram:declare([{name, cowboy_request_duration_seconds},
-                                {registry, registry()},
-                                {labels, request_labels()},
-                                {buckets, duration_buckets()},
-                                {help, "Cowboy request duration."}]),
-  prometheus_histogram:declare([{name, cowboy_receive_body_duration_seconds},
-                                {registry, registry()},
-                                {labels, request_labels()},
-                                {buckets, duration_buckets()},
-                                {help, "Request body receiving duration."}]),
+    prometheus_counter:declare([
+        {name, cowboy_early_errors_total},
+        {registry, registry()},
+        {labels, early_error_labels()},
+        {help, "Total number of Cowboy early errors."}
+    ]),
+    prometheus_counter:declare([
+        {name, cowboy_protocol_upgrades_total},
+        {registry, registry()},
+        {labels, protocol_upgrade_labels()},
+        {help, "Total number of protocol upgrades."}
+    ]),
+    %% each observe call means new request
+    prometheus_counter:declare([
+        {name, cowboy_requests_total},
+        {registry, registry()},
+        {labels, request_labels()},
+        {help, "Total number of Cowboy requests."}
+    ]),
+    prometheus_counter:declare([
+        {name, cowboy_spawned_processes_total},
+        {registry, registry()},
+        {labels, request_labels()},
+        {help, "Total number of spawned processes."}
+    ]),
+    prometheus_counter:declare([
+        {name, cowboy_errors_total},
+        {registry, registry()},
+        {labels, error_labels()},
+        {help, "Total number of Cowboy request errors."}
+    ]),
+    prometheus_histogram:declare([
+        {name, cowboy_request_duration_seconds},
+        {registry, registry()},
+        {labels, request_labels()},
+        {buckets, duration_buckets()},
+        {help, "Cowboy request duration."}
+    ]),
+    prometheus_histogram:declare([
+        {name, cowboy_receive_body_duration_seconds},
+        {registry, registry()},
+        {labels, request_labels()},
+        {buckets, duration_buckets()},
+        {help, "Request body receiving duration."}
+    ]),
 
-  ok.
+    ok.
 
 %% ===================================================================
 %% Private functions
 %% ===================================================================
 
-dispatch_metrics(#{early_error_time := _}=Metrics) ->
-  inc(cowboy_early_errors_total, early_error_labels(Metrics));
-dispatch_metrics(#{reason := switch_protocol}=Metrics) ->
-  inc(cowboy_protocol_upgrades_total, protocol_upgrade_labels(Metrics));
-dispatch_metrics(#{req_start := ReqStart,
-                   req_end := ReqEnd,
-                   req_body_start := ReqBodyStart,
-                   req_body_end := ReqBodyEnd,
-                   reason := Reason,
-                   procs := Procs}=Metrics) ->
-  RequestLabels = request_labels(Metrics),
-  inc(cowboy_requests_total, RequestLabels),
-  inc(cowboy_spawned_processes_total, RequestLabels, maps:size(Procs)),
-  observe(cowboy_request_duration_seconds, RequestLabels, ReqEnd - ReqStart),
-  case ReqBodyEnd of
-    undefined -> ok;
-    _ -> observe(cowboy_receive_body_duration_seconds, RequestLabels,
-                 ReqBodyEnd - ReqBodyStart)
-  end,
+dispatch_metrics(#{early_error_time := _} = Metrics) ->
+    inc(cowboy_early_errors_total, early_error_labels(Metrics));
+dispatch_metrics(#{reason := switch_protocol} = Metrics) ->
+    inc(cowboy_protocol_upgrades_total, protocol_upgrade_labels(Metrics));
+dispatch_metrics(
+    #{
+        req_start := ReqStart,
+        req_end := ReqEnd,
+        req_body_start := ReqBodyStart,
+        req_body_end := ReqBodyEnd,
+        reason := Reason,
+        procs := Procs
+    } = Metrics
+) ->
+    RequestLabels = request_labels(Metrics),
+    inc(cowboy_requests_total, RequestLabels),
+    inc(cowboy_spawned_processes_total, RequestLabels, maps:size(Procs)),
+    observe(cowboy_request_duration_seconds, RequestLabels, ReqEnd - ReqStart),
+    case ReqBodyEnd of
+        undefined ->
+            ok;
+        _ ->
+            observe(
+                cowboy_receive_body_duration_seconds,
+                RequestLabels,
+                ReqBodyEnd - ReqBodyStart
+            )
+    end,
 
-  case Reason of
-    normal ->
-      ok;
-    switch_protocol ->
-      ok;
-    stop ->
-      ok;
-    _ ->
-      ErrorLabels = error_labels(Metrics),
-      inc(cowboy_errors_total, ErrorLabels)
-  end.
+    case Reason of
+        normal ->
+            ok;
+        switch_protocol ->
+            ok;
+        stop ->
+            ok;
+        _ ->
+            ErrorLabels = error_labels(Metrics),
+            inc(cowboy_errors_total, ErrorLabels)
+    end.
 
 inc(Name, Labels) ->
-  prometheus_counter:inc(registry(), Name, Labels, 1).
+    prometheus_counter:inc(registry(), Name, Labels, 1).
 
 inc(Name, Labels, Value) ->
-  prometheus_counter:inc(registry(), Name, Labels, Value).
+    prometheus_counter:inc(registry(), Name, Labels, Value).
 
 observe(Name, Labels, Value) ->
-  prometheus_histogram:observe(registry(), Name, Labels, Value).
+    prometheus_histogram:observe(registry(), Name, Labels, Value).
 
 %% labels
 
 early_error_labels(Metrics) ->
-  compute_labels(early_error_labels(), Metrics).
+    compute_labels(early_error_labels(), Metrics).
 
 protocol_upgrade_labels(Metrics) ->
-  compute_labels(protocol_upgrade_labels(), Metrics).
+    compute_labels(protocol_upgrade_labels(), Metrics).
 
 request_labels(Metrics) ->
-  compute_labels(request_labels(), Metrics).
+    compute_labels(request_labels(), Metrics).
 
 error_labels(Metrics) ->
-  compute_labels(error_labels(), Metrics).
+    compute_labels(error_labels(), Metrics).
 
 compute_labels(Labels, Metrics) ->
-  [label_value(Label, Metrics) || Label <- Labels].
+    [label_value(Label, Metrics) || Label <- Labels].
 
-label_value(host, #{listener_host:=Host}) ->
-  Host;
-label_value(port, #{listener_port:=Port}) ->
-  Port;
-label_value(method, #{req:=Req}) ->
-  cowboy_req:method(Req);
-label_value(status, #{resp_status:=Status}) ->
-  Status;
-label_value(status_class, #{resp_status:=undefined}) ->
-  undefined;
-label_value(status_class, #{resp_status:=Status}) when is_binary(Status) ->
-  undefined;
-label_value(status_class, #{resp_status:=Status}) when is_integer(Status) ->
-  prometheus_http:status_class(Status);
-label_value(reason, #{reason:=Reason}) ->
-  case Reason of
-    _ when is_atom(Reason) -> Reason;
-    {ReasonAtom, _} -> ReasonAtom;
-    {ReasonAtom, _, _} -> ReasonAtom
-  end;
-label_value(error, #{reason:=Reason}) ->
-  case Reason of
-    _ when is_atom(Reason) -> undefined;
-    {_, {Error, _}, _} -> Error;
-    {_, Error, _} when is_atom(Error) -> Error;
-    _ -> undefined
-  end;
+label_value(host, #{listener_host := Host}) ->
+    Host;
+label_value(port, #{listener_port := Port}) ->
+    Port;
+label_value(method, #{req := Req}) ->
+    cowboy_req:method(Req);
+label_value(status, #{resp_status := Status}) ->
+    Status;
+label_value(status_class, #{resp_status := undefined}) ->
+    undefined;
+label_value(status_class, #{resp_status := Status}) when is_binary(Status) ->
+    undefined;
+label_value(status_class, #{resp_status := Status}) when is_integer(Status) ->
+    prometheus_http:status_class(Status);
+label_value(reason, #{reason := Reason}) ->
+    case Reason of
+        _ when is_atom(Reason) -> Reason;
+        {ReasonAtom, _} -> ReasonAtom;
+        {ReasonAtom, _, _} -> ReasonAtom
+    end;
+label_value(error, #{reason := Reason}) ->
+    case Reason of
+        _ when is_atom(Reason) -> undefined;
+        {_, {Error, _}, _} -> Error;
+        {_, Error, _} when is_atom(Error) -> Error;
+        _ -> undefined
+    end;
 label_value(Label, Metrics) ->
-  case labels_module() of
-    undefined -> undefined;
-    Module -> Module:label_value(Label, Metrics)
-  end.
+    case labels_module() of
+        undefined -> undefined;
+        Module -> Module:label_value(Label, Metrics)
+    end.
 
 %% configuration
 
 config() ->
-  application:get_env(prometheus, cowboy_instrumenter, ?DEFAULT_CONFIG).
+    application:get_env(prometheus, cowboy_instrumenter, ?DEFAULT_CONFIG).
 
 get_config_value(Key, Default) ->
-  proplists:get_value(Key, config(), Default).
+    proplists:get_value(Key, config(), Default).
 
 duration_buckets() ->
-  get_config_value(duration_buckets, ?DEFAULT_DURATION_BUCKETS).
+    get_config_value(duration_buckets, ?DEFAULT_DURATION_BUCKETS).
 
 early_error_labels() ->
-  get_config_value(early_error_labels, ?DEFAULT_EARLY_ERROR_LABELS).
+    get_config_value(early_error_labels, ?DEFAULT_EARLY_ERROR_LABELS).
 
 protocol_upgrade_labels() ->
-  get_config_value(protocol_upgrade_labels, ?DEFAULT_PROTOCOL_UPGRADE_LABELS).
+    get_config_value(protocol_upgrade_labels, ?DEFAULT_PROTOCOL_UPGRADE_LABELS).
 
 request_labels() ->
-  get_config_value(request_labels, ?DEFAULT_REQUEST_LABELS).
+    get_config_value(request_labels, ?DEFAULT_REQUEST_LABELS).
 
 error_labels() ->
-  get_config_value(error_labels, ?DEFAULT_ERROR_LABELS).
+    get_config_value(error_labels, ?DEFAULT_ERROR_LABELS).
 
 labels_module() ->
-  get_config_value(labels_module, ?DEFAULT_LABELS_MODULE).
+    get_config_value(labels_module, ?DEFAULT_LABELS_MODULE).
 
 registry() ->
-  get_config_value(registry, ?DEFAULT_REGISTRY).
+    get_config_value(registry, ?DEFAULT_REGISTRY).

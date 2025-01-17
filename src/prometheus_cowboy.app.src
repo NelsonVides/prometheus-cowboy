@@ -1,16 +1,16 @@
-{application, prometheus_cowboy,
- [{description, "Cowboy exporter for the prometheus.erl client"},
-  {vsn, git},
-  {registered, []},
-  {applications,
-   [kernel,
-    stdlib,
-    prometheus_httpd
-   ]},
-  {env,[]},
-  {modules, []},
-  {mod, {prometheus_cowboy, []}},
-  {maintainers, ["Ilya Khaprov, Erlang Solutions"]},
-  {licenses, ["MIT"]},
-  {links, [{"Github", "https://github.com/NelsonVides/prometheus_cowboy"}]}
- ]}.
+{application, prometheus_cowboy, [
+    {description, "Cowboy exporter for the prometheus.erl client"},
+    {vsn, git},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        prometheus_httpd
+    ]},
+    {env, []},
+    {modules, []},
+    {mod, {prometheus_cowboy, []}},
+    {maintainers, ["Ilya Khaprov, Erlang Solutions"]},
+    {licenses, ["MIT"]},
+    {links, [{"Github", "https://github.com/NelsonVides/prometheus_cowboy"}]}
+]}.
